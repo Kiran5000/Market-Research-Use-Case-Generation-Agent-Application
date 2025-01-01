@@ -2,6 +2,11 @@ import streamlit as st
 from crew import ask
 from fpdf import FPDF
 
+# Access API keys from Streamlit Secrets
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+SERPER_API_KEY = st.secrets["SERPER_API_KEY"]
+TOGETHER_API_KEY = st.secrets["TOGETHER_API_KEY"]
+
 # PDF generation function
 def save_to_pdf(content, filename="Company_Research_Report.pdf"):
     pdf = FPDF()
@@ -14,7 +19,7 @@ def save_to_pdf(content, filename="Company_Research_Report.pdf"):
             line = line.encode('latin-1', 'replace').decode('latin-1')
             pdf.multi_cell(0, 10, line)
         except Exception as e:
-            print(f"Error encoding line: {e}")
+            st.warning(f"Error encoding line: {e}")
     
     pdf.output(filename)
 
@@ -44,18 +49,21 @@ def main():
 
     # Submit button with response handling and result display
     if st.button("🎉 Generate Insights", key="generate_insights"):
-        # Call the ask function and display the result
-        response = ask(question)
-        st.session_state.response = [
-            f"**Industry Research Report**:\n{response.tasks_output[0].raw}",
-            f"**AI Use Cases**:\n{response.tasks_output[1].raw}",
-            f"**Resource Collection**:\n{response.tasks_output[2].raw}"
-        ]
+        if question.strip() == "":
+            st.warning("Please enter a valid company or industry name.")
+        else:
+            # Call the ask function and display the result
+            response = ask(question)
+            st.session_state.response = [
+                f"**Industry Research Report**:\n{response.tasks_output[0].raw}",
+                f"**AI Use Cases**:\n{response.tasks_output[1].raw}",
+                f"**Resource Collection**:\n{response.tasks_output[2].raw}"
+            ]
 
-        # Display results with styled output
-        for i, section in enumerate(["Industry Research Report", "AI Use Cases", "Resource Collection"]):
-            st.markdown(f"### 🔬 {section}")
-            st.write(st.session_state.response[i])
+            # Display results with styled output
+            for i, section in enumerate(["Industry Research Report", "AI Use Cases", "Resource Collection"]):
+                st.markdown(f"### 🔬 {section}")
+                st.write(st.session_state.response[i])
 
     # PDF Generation section
     st.markdown("---")
@@ -66,9 +74,12 @@ def main():
 
     # Save to PDF button
     if st.button("🔗 Save as PDF", key="save_pdf") and 'response' in st.session_state:
-        save_to_pdf(st.session_state.response)
-        st.session_state.pdf_saved = True
-        st.success("📧 Report saved as PDF successfully!")
+        try:
+            save_to_pdf(st.session_state.response)
+            st.session_state.pdf_saved = True
+            st.success("📧 Report saved as PDF successfully!")
+        except Exception as e:
+            st.error(f"Error saving PDF: {e}")
 
     # Dynamically generate the key for the download button
     download_button_key = "download_pdf_" + str(st.session_state.get('response', None))
@@ -76,14 +87,17 @@ def main():
     # Download PDF button (unique key)
     if st.session_state.get('pdf_saved', False):
         if st.button("💾 Download PDF", key=download_button_key):
-            with open("Company_Research_Report.pdf", "rb") as pdf_file:
-                pdf_data = pdf_file.read()
-                st.download_button(
-                    label="📚 Download PDF Report",
-                    data=pdf_data,
-                    file_name="Company_Research_Report.pdf",
-                    mime="application/pdf"
-                )
+            try:
+                with open("Company_Research_Report.pdf", "rb") as pdf_file:
+                    pdf_data = pdf_file.read()
+                    st.download_button(
+                        label="📚 Download PDF Report",
+                        data=pdf_data,
+                        file_name="Company_Research_Report.pdf",
+                        mime="application/pdf"
+                    )
+            except Exception as e:
+                st.error(f"Error loading PDF for download: {e}")
 
 # Run the app
 if __name__ == "__main__":
